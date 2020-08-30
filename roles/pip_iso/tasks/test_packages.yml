@@ -1,0 +1,98 @@
+---
+
+- name: "Check virtual environments for dependencies"
+  shell: "source /tmp/{{ python_iso }}_build/bin/activate;
+          python{{ python_ver }} -m pip check;
+          deactivate"
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Checking packages in /tmp/{{ python_iso }}_build/"
+  register: dep_check
+  failed_when: '"No broken requirements found" not in dep_check.stdout'
+
+- name: "Transfer Devito Test"
+  template:
+    src: "check_devito.py.j2"
+    dest: "/tmp/check_devito.py"
+  loop: "{{ pip_packages }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Checking for Devito install in /tmp/{{ python_iso.name }}_build/"
+  when:
+    - python_iso.name in iso_list
+    - python_iso.packages | regex_search('devito')
+  
+- name: "Run Devito test"
+  shell: "source /tmp/{{ python_iso.name }}_build/bin/activate;
+          export PYTHONPATH='/tmp/{{ python_iso.name }}_build/lib/python3.6/site-packages/'; 
+          export DEVITO_LOGGING=DEBUG;
+          export OMP_NUM_THREADS=1; 
+          python3 /tmp/check_devito.py;
+          deactivate"
+  async: 7200
+  poll: 0
+  register: devito_installs
+  loop: "{{ pip_packages }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Testing Devito /tmp/{{ python_iso.name }}_build/"
+  when:
+    - python_iso.name in iso_list
+    - python_iso.packages | regex_search('devito')
+
+- name: "Check Devito Tests"
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  loop: "{{ devito_installs.results }}"
+  loop_control:
+    loop_var: "async_result_item"
+    label: "Successfully tested Devito in {{ async_result_item.python_iso }}"
+  register: async_poll_results
+  until: async_poll_results.finished
+  retries: 120
+  delay: 5
+  when: not async_result_item.skipped
+
+- name: "Transfer module test"
+  template:
+    src: "check_python_modules.py.j2"
+    dest: "/tmp/{{ python_iso.name }}_build/check_python_modules.py"
+  vars:
+    package_list: "{{ python_iso.packages }}"
+  loop: "{{ pip_packages }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Creating module check for /tmp/{{ python_iso.name }}_build/"
+  when:
+    - "python_iso.name in iso_list"
+  
+- name: "Run module test"
+  shell: "source /tmp/{{ python_iso }}_build/bin/activate;
+          python3 /tmp/{{ python_iso }}_build/check_python_modules.py;
+          deactivate;
+          rm /tmp/{{ python_iso }}_build/check_python_modules.py"
+  async: 7200
+  poll: 0
+  register: module_tests
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Testing modules in /tmp/{{ python_iso }}_build/"
+
+- name: "Check module tests"
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  loop: "{{ module_tests.results }}"
+  loop_control:
+    loop_var: "async_result_item"
+    label: "Successfully tested Python modules in {{ async_result_item.python_iso }}"
+  register: async_poll_results
+  failed_when: 
+    - async_poll_results.results.stdout is defined
+    - "'Error importing' in async_poll_results.results.stdout"
+  until: async_poll_results.finished
+  retries: 120
+  delay: 5
+  
+...

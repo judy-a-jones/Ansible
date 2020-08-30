@@ -1,0 +1,116 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: true
+  vars:
+    min_port: 2222
+    max_port: 2322
+
+  tasks:
+    - name: "Get vbox facts"
+      vbox_vm_facts:
+
+    - name: "Get artifacts size"
+      shell: "/usr/bin/du -s --block-size=MB artifacts/ | cut -d 'M' -f 1"
+      register: artifacts_size
+
+    - name: "Import {{ vm_name }} main OS disks from artifacts"
+      vbox_disk_import:
+        path: "artifacts/vbox_images/{{ vm_name }}.vdi"
+
+    - name: "Create scratch disk for artifacts"
+      vbox_disk:
+        state: present
+        name: "{{ vm_name }}_artifacts"
+        size: "{{ (artifacts_size.stdout|int * 1.5) | round(-3,'ceil') | int }}"
+        allocation: static
+
+    - name: "Create {{ vm_name }} vm"
+      vbox_vm:
+        state: present
+        name: "{{ vm_name }}"
+
+    - name: "Configure {{ vm_name }} vm"
+      vbox_vm_configure:
+        name: "{{ vm_name }}"
+        memory: 1024
+        cpus: 2
+        boot_sequence:
+          - disk
+        ioapic: on
+        usb: off
+        nic1:
+          state: present
+          type: bridged
+          bridged_interface: "eth0"
+        nic2:
+          state: present
+          type: nat
+        storage_controllers:
+          - state: present
+            name: IDE
+            type: ide
+            bootable: on
+
+    - name: "Attach disks to {{ vm_name }}"
+      vbox_disk_attach:
+        state: attached
+        name: "{{ disk.name }}"
+        vm_name: "{{ vm_name }}"
+        storage_controller: IDE
+        port: "{{ disk.port }}"
+        device: "{{ disk.device }}"
+      loop:
+        - { name: "{{ vm_name }}", port: "0", device: "0" }
+        - { name: "{{ vm_name }}_artifacts", port: "1", device: "0" }
+      loop_control:
+        label: "{{ disk.name }}"
+        loop_var: disk
+
+#Replace with ports loop
+#    - name: "Find unused port for port forwarding"
+#        min_port: "{{ min_port }}"
+#        max_port: "{{ max_port }}"
+#        min_number: 1
+#      register: ports
+
+    - name: "Pick port for forwarding"
+      set_fact:
+        forwarded_port: "{{ ports.closed_ports | first }}"
+
+    - name: "Setup forwarded port {{ vm_name }}"
+      vbox_vm_port_forward:
+        name: "{{ vm_name }}"
+        nic2_portforward:
+          - state: present
+            name: guestssh
+            type: tcp
+            hostport: "{{ forwarded_port }}"
+            guestport: 22
+
+    - name: "Start {{ vm_name }} vm"
+      vbox_vm_power:
+        name: "{{ vm_name }}"
+        state: started
+
+    - name: "Create tmp {{ vm_name }} inventory directory"
+      file:
+        path: "{{ tmp_inv_path }}"
+        state: directory
+
+    - name: "Write out tmp inventory for {{ vm_name }}"
+      copy:
+        content: "{{ vm_name }} ansible_host=127.0.0.1 ansible_port={{ forwarded_port }} ansible_user='{{ site_user_name }}' ansible_ssh_private_key_file='./id_rsa'"
+        dest: "{{ tmp_inv_path }}/vbox_tmp_inventory"
+
+    - name: "Wait for {{ vm_name }} to finish booting"
+      wait_for:
+        host: 127.0.0.1
+        port: "{{ forwarded_port }}"
+        search_regex: OpenSSH
+        delay: 20
+        timeout: 800
+      vars:
+        ansible_connection: local
+
+...

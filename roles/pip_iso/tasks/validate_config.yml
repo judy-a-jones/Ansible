@@ -1,0 +1,59 @@
+---
+
+- name: "Validate Python version"
+  fail:
+    msg: "Python{{ python_ver }} is not supported"
+  when: python_ver not in supported_python_versions
+
+- name: "Validate package lists"
+  set_fact:
+    bad_package_lists: |
+      {%- set bad_package_lists = [] -%}
+      {%- for required_package in required_pip_packages -%}
+        {%- for iso in pip_packages -%}
+          {%- for download_package in iso.packages -%}
+            {%- if required_package|string in download_package|string -%}
+              {%- do bad_package_lists.append({
+                'name': download_package,
+                'iso': iso.name
+              }) -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ bad_package_lists }}
+  when: python_ver in pip_packages|map(attribute='python_version')|list
+
+- name: "Fail if bad package list found"
+  fail:
+    msg: "Package {{ package.name }} found in {{ package.iso }} conflicts with required pip packages"
+  loop: "{{ bad_package_lists }}"
+  loop_control:
+    label: "Checking {{ package.iso }}"
+    loop_var: package
+  when: bad_package_lists|default("")|length >= 1
+
+- name: "Check for current isos"
+  local_action:
+    module: stat
+    path: "{{ artifact_dir }}/{{ python_iso.name }}_artifacts.iso"
+  loop: "{{ pip_packages }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Checking for {{ artifact_dir }}{{ python_iso.name }}_artifacts.iso"
+  when: "python_ver == python_iso.python_version"
+  register: current_python_iso
+
+- name: "Set facts for existing isos"
+  set_fact: 
+    existing_isos: | 
+      {%- set existing_isos = [] -%}
+      {%- for iso in current_python_iso.results -%}
+        {%- if iso.stat is defined and iso.stat.exists == true -%}
+          {%- do existing_isos.append(iso.python_iso.name) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ existing_isos }}
+  when: "'true'|bool in current_python_iso.results|map(attribute='stat')|map(attribute='exists')|list"
+
+...

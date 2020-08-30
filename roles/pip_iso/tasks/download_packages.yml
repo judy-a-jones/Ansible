@@ -1,0 +1,64 @@
+---
+
+#- name: "Install yum packages"
+#Replace with yum
+
+- name: "Install pip packages"
+  pip:
+    name: "{{ package }}"
+    state: latest
+    executable: "pip{{ python_ver }}"
+  loop: "{{ required_pip_packages }}"
+  loop_control:
+    loop_var: package
+    label: "Installing {{ package }}"
+
+- name: "Create artifact and build directories"
+  file:
+    path: "/tmp/{{ python_iso.0 }}_{{ python_iso.1 }}/"
+    state: directory
+  loop: "{{ iso_list | product(['build','artifacts']) | list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Creating /tmp/{{ python_iso.0 }}_{{ python_iso.1 }}/"
+
+- name: "Create requirements"
+  blockinfile:
+    path: "/tmp/{{ python_iso.name }}_artifacts/requirements.txt"
+    block: |
+      {%- set package_list = "" -%}
+      {%- for package in (python_iso.packages + required_pip_packages)|sort -%}
+      {{ package }} 
+      {% endfor -%}
+    create: yes
+  loop: "{{ pip_packages }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Creating /tmp/{{ python_iso.name }}_artifacts/requirements.txt"
+  when: "python_iso.name in iso_list"
+
+- name: "Download packages"
+  shell: "python{{ python_ver}} -m pip download --default-timeout=1000 --retries=10 
+          -d /tmp/{{ python_iso }}_artifacts 
+          -r /tmp/{{ python_iso }}_artifacts/requirements.txt"
+  async: 7200
+  poll: 0
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Downloading packages /tmp/{{ python_iso }}_artifacts/"
+  register: downloaded_pkg
+
+- name: "Check on downloads"
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  loop: "{{ downloaded_pkg.results }}"
+  loop_control:
+    loop_var: async_result_item
+    label: "Successfully downloaded packages to /tmp/{{ async_result_item.python_iso }}_artifacts/"
+  register: async_poll_results
+  until: async_poll_results.finished
+  retries: 120
+  delay: 60
+
+...

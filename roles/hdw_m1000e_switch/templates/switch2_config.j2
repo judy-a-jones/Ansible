@@ -1,0 +1,397 @@
+! Version 9.14(1.6)
+!
+boot system stack-unit 0 primary system://B
+boot system stack-unit 0 secondary system://A
+boot system stack-unit 1 primary system://B
+boot system stack-unit 1 secondary system://A
+!
+hostname Dell
+!
+eula-consent support-assist reject
+! 
+protocol lldp 
+!
+redundancy auto-synchronize full
+!
+stack-unit 0 provision MXL-10/40GbE
+! 
+stack-unit 1 provision MXL-10/40GbE
+! 
+stack-unit 0 port 53 portmode quad
+! 
+stack-unit 0 stack-group 0
+! 
+stack-unit 0 stack-group 1
+! 
+{% set interface_info = [] -%}
+{%- set interface_list =[] -%}
+{%- for blade in switch_interfaces -%}
+{%-   for interface in blade['switch2_interfaces'] -%}
+{%-     do interface_list.append({ "interface": interface }) -%}
+{%-   endfor -%}
+{%-   for interface in interface_list -%}
+{%-     do interface_info.append({ "interface": interface['interface'], "description": blade['description'] }) -%}
+{%-   endfor -%}
+{%- set interface_list = [] -%}
+{%- endfor -%}
+{% for interface in interface_info %}
+interface TenGigabitEthernet {{ interface['interface'] }}
+ description {{ interface['description'] }}
+ no ip address
+ switchport
+ no shutdown
+!
+{% endfor %}
+interface TenGigabitEthernet 0/17
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/18
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/19
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/20
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/21
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/22
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/23
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/24
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/25
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/26
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/27
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/28
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/29
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/30
+no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/31
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/32
+ no ip address
+ shutdown
+! 
+interface fortyGigE 0/41
+ no ip address
+ shutdown
+! 
+interface fortyGigE 0/45
+ no ip address
+ shutdown
+! 
+interface fortyGigE 0/49
+ no ip address
+ shutdown
+! 
+{% set breakout_info = [] -%}
+{%- set breakout_list =[] -%}
+{%- for breakout in m1000e_breakout_interfaces -%}
+{%-   for interface in breakout['switch2_interfaces'] -%}
+{%-     do breakout_list.append({ "interface": interface }) -%}
+{%-   endfor -%}
+{%-   for interface in breakout_list -%}
+{%-     do breakout_info.append({ "interface": interface['interface'], "description": breakout['description'] }) -%}
+{%-   endfor -%}
+{%- set breakout_list = [] -%}
+{%- endfor -%}
+{%- for interface in breakout_info %}
+interface TenGigabitEthernet {{ interface['interface'] }}
+ description {{ interface['description'] }}
+ no ip address
+ switchport
+ no shutdown
+!
+{% endfor %}
+interface TenGigabitEthernet 0/54
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/55
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 0/56
+ no ip address
+ shutdown
+! 
+stack-unit 1 port 53 portmode quad
+! 
+stack-unit 1 stack-group 0
+! 
+stack-unit 1 stack-group 1
+! 
+interface TenGigabitEthernet 1/17
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/18
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/19
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/20
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/21
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/22
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/23
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/24
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/25
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/26
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/27
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/28
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/29
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/30
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/31
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/32
+ no ip address
+ shutdown
+! 
+interface fortyGigE 1/41
+ no ip address
+ shutdown
+! 
+interface fortyGigE 1/45
+ no ip address
+ shutdown
+! 
+interface fortyGigE 1/49
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/53
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/54
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/55
+ no ip address
+ shutdown
+! 
+interface TenGigabitEthernet 1/56
+ no ip address
+ shutdown
+! 
+interface ManagementEthernet 0/0
+ ip address dhcp
+ no shutdown
+! 
+interface Port-channel 1
+ no ip address
+ shutdown
+! 
+interface Port-channel 2
+ no ip address
+ shutdown
+! 
+interface Port-channel 3
+ no ip address
+ shutdown
+! 
+interface Port-channel 4
+ no ip address
+ shutdown
+! 
+interface Port-channel 5
+ no ip address
+ shutdown
+! 
+interface Port-channel 6
+ no ip address
+ shutdown
+! 
+interface Port-channel 7
+ no ip address
+ shutdown
+! 
+interface Port-channel 8
+ no ip address
+ shutdown
+! 
+interface Port-channel 9
+ no ip address
+ shutdown
+! 
+interface Port-channel 10
+ no ip address
+ shutdown
+! 
+interface Port-channel 11
+ no ip address
+ shutdown
+! 
+interface Port-channel 12
+ no ip address
+ shutdown
+! 
+interface Port-channel 13
+ no ip address
+ shutdown
+! 
+interface Port-channel 14
+ no ip address
+ shutdown
+! 
+interface Port-channel 15
+ no ip address
+ shutdown
+! 
+interface Port-channel 16
+ no ip address
+ shutdown
+! 
+interface Port-channel 53
+ no ip address
+ shutdown
+! 
+interface Vlan 1
+ no ip address
+ no shutdown
+! 
+{% for _vlan in switch_vlans|sort(attribute='vlan_id') %}
+interface Vlan {{ _vlan['vlan_id'] }}
+{%  if _vlan['switch2_ip'] is defined %}
+ ip address {{ _vlan['switch2_ip'] }}/24
+{%  else %}
+ no ip address
+{%  endif %}
+{%  for breakout in m1000e_breakout_interfaces %}
+ tagged TenGigabitEthernet {{ breakout['switch2_interfaces']|replace("[u'","")|replace("']","") }}
+{% endfor %}
+{%- set vlan_info = [] -%}
+{%- for blade in switch_interfaces -%}
+{%-   do vlan_info.append({ "vlan": blade['vlans']|replace("-","")|trim, "interface": blade['switch2_interfaces'] }) -%}
+{%- endfor -%}
+{%- set vlan_interface_list_0 = [] -%}
+{%- set vlan_interface_list_1 = [] -%}
+{%- for vlan in vlan_info|sort(attribute='vlan') -%}
+{%-   if _vlan['vlan_id']|int == vlan['vlan']|int -%}
+{%-     for interface in vlan['interface'] -%}
+{%-       if interface[:2] == "0/" -%}
+{%-         do vlan_interface_list_0.append(interface) -%}
+{%-       elif interface[:2] == "1/" -%}
+{%-         do vlan_interface_list_1.append(interface) -%}
+{%-       endif -%}
+{%-     endfor -%}
+{%-   endif -%}
+{%- endfor -%}
+{% if( vlan_interface_list_0|length or vlan_interface_list_1|length) %}
+ untagged TenGigabitEthernet {{ vlan_interface_list_0|join(",")|replace(",0/",",") }}
+ untagged TenGigabitEthernet {{ vlan_interface_list_1|join(",")|replace(",1/",",") }}
+{% endif %}
+ no shutdown
+!
+{% endfor %}
+ip route 0.0.0.0/0 {{ switch_gateway }}
+!
+service-class dynamic dot1p
+!
+snmp-server community gxtro ro 
+snmp-server location {{ switch_location }}
+!
+stack-unit 0 priority 14
+stack-unit 1 priority 13
+!
+clock timezone CST -6 
+clock summer-time CDT recurring 2 Sun Mar 2:00 1 Sun Nov 2:00 
+!
+ip ssh rsa-authentication enable
+!
+support-assist
+ enable all
+! 
+dcb-map FLEXIO_DCB_MAP_PFC_OFF
+ no pfc mode on
+!
+line console 0
+line vty 0
+line vty 1
+line vty 2
+line vty 3
+line vty 4
+line vty 5
+line vty 6
+line vty 7
+line vty 8
+line vty 9
+! 
+reload-type
+ boot-type normal-reload
+ config-scr-download enable
+! 
+end

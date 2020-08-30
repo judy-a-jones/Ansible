@@ -1,0 +1,33 @@
+---
+
+- name: "Create iso for Python{{ python_release }}"
+  block: 
+  - name: "Set Python{{ python_release }} facts"
+    set_fact:
+      python_ver: "{{ python_release }}"
+      python_repo_port: 8080
+  
+  - name: "Validate build configuration"
+    include_tasks: validate_config.yml
+ 
+  - name: "Analyze current Python{{ python_ver }} isos"
+    include_tasks: validate_isos.yml
+    when: existing_isos is defined and existing_isos|length >= 1
+  
+  - name: "Download necessary Python{{ python_ver }} packages"
+    block:
+    - name: "Download packages"
+      include_tasks: download_packages.yml
+  
+    - name: "Create virtual environments with required packages"
+      include_tasks: create_virtual_environments.yml
+  
+    - name: "Test virtual environments"
+      include_tasks: test_packages.yml
+  
+    - name: "Export isos and clean up directories"
+      include_tasks: export_isos.yml
+    when: iso_list is defined and iso_list|length >= 1
+  when: python_release in pip_packages|map(attribute='python_version')|list
+
+...

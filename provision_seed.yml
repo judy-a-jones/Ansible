@@ -1,0 +1,123 @@
+---
+
+- hosts: "{{ vm_name }}"
+  become: true
+  gather_facts: true
+  vars:
+    repo_path: /yum_repo
+    artifacts_mount: "{{ site_local_home_dir_prefix }}/{{ site_user_name }}/artifacts"
+    yum_packages:
+      - package: ansible
+      - package: git2u
+
+  tasks:
+#Configure artifacts
+    - name: "Partition artifacts disk"
+      parted:
+        device: /dev/sdb
+        number: 1
+        state: present
+
+    - name: "Format artifacts disk"
+      filesystem:
+        dev: /dev/sdb1
+        fstype: ext4
+
+    - name: "Mount artifacts disk"
+      mount:
+        path: "{{ artifacts_mount }}"
+        src: /dev/sdb1
+        fstype: ext4
+        state: mounted
+        backup: yes
+
+    - name: "Update permissions on artifacts mount"
+      file:
+        path: "{{ artifacts_mount }}"
+        owner: "{{ site_user_name }}"
+        group: "{{ site_user_name }}"
+        state: directory
+        recurse: yes
+        mode: u+rw,g+wx,o+rwx
+
+    - name: "Copy artifacts to {{ vm_name }}"
+      synchronize:
+        src: "{{ playbook_dir }}/artifacts/"
+        dest: "{{ artifacts_mount }}"
+        recursive: yes
+
+#Install packages
+    - name: "Mount yum repo"
+      mount:
+        path: "/tmp/temp_iso_mount/"
+        src: "{{ artifacts_mount }}/yum_repo.iso"
+        fstype: iso9660
+        opts: ro
+        state: mounted
+
+    - name: "Copy contents of ISO to {{ repo_path }}"
+      shell: "/usr/bin/rsync -r /tmp/temp_iso_mount/ {{ repo_path }}/"
+
+    - name: "Unmount ISO"
+      mount:
+        path: "/tmp/temp_iso_mount"
+        state: absent
+
+#Replace with yum
+#    - name: "Install packages"
+#      include_role:
+#        name: "{{ role }}"
+#      vars:
+#        repo_url: "file://{{ repo_path }}"
+#        packages: "{{ yum_packages }}"
+#      loop:
+#      loop_control:
+#        loop_var: role
+
+#Download GIT repo
+    - name: "Update resolv.conf with local DNS search"
+      lineinfile:
+        path: /etc/resolv.conf
+        line: "search {{ vm_dns }}"
+        regexp: "^search "
+        backup: yes
+
+    - name: "Create id_rsa for {{ site_user_name }}"
+      lineinfile:
+        path: "{{ site_local_home_dir_prefix }}/{{ site_user_name }}/.ssh/id_rsa"
+        line: "{{ vault_id_rsa }}"
+        create: yes
+        mode: '600'
+        backup: yes
+
+    - name: "Find current git branch"
+      shell: "/usr/bin/git status | head -1 | sed 's/On branch //g'"
+      register: git_branch
+      delegate_to: 127.0.0.1
+
+    - name: "Check out GIT repo"
+      git:
+        repo:
+        version: "{{ git_branch.stdout }}"
+        dest: "{{ site_local_home_dir_prefix }}/{{ site_user_name }}/repo"
+        key_file: "{{ site_local_home_dir_prefix }}/{{ site_user_name }}/.ssh/id_rsa"
+        depth: 1
+        accept_hostkey: yes
+
+#Networking
+    - name: "Configure bridged network"
+      lineinfile:
+        path: "/etc/sysconfig/network-scripts/ifcfg-enp0s3"
+        line: "ONBOOT=no"
+        regexp: "^ONBOOT=yes"
+        backup: yes
+
+    - name: "Remove default cloud-init network configuration"
+      blockinfile:
+        path: "/etc/cloud/cloud.cfg"
+        backup: yes
+        block: |
+          network:
+            config: disabled
+
+...

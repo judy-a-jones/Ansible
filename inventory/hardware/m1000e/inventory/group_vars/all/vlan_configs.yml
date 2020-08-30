@@ -1,0 +1,51 @@
+---
+
+m1000e_vlan_mode: access
+
+m1000e_vlans:
+  - name: vlan_20
+    vlan_id: 20
+    switch1_ip: 
+    switch2_ip: 
+  - name: vlan_21
+    vlan_id: 21
+    blades:
+      - blade_1
+      - blade_9
+  - name: vlan_22
+    vlan_id: 22
+    blades:
+      - blade_2
+      - blade_10
+  - name: vlan_23
+    vlan_id: 23
+    blades:
+      - blade_3
+      - blade_11
+  - name: vlan_24
+    vlan_id: 24
+    blades:
+      - blade_4
+      - blade_12
+  - name: vlan_25
+    vlan_id: 25
+    blades:
+      - blade_5
+      - blade_13
+  - name: vlan_26
+    vlan_id: 26
+    blades:
+      - blade_6
+      - blade_14
+  - name: vlan_27
+    vlan_id: 27
+    blades:
+      - blade_7
+      - blade_15
+  - name: vlan_28
+    vlan_id: 28
+    blades:
+      - blade_8
+      - blade_16
+
+...

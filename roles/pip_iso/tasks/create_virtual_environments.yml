@@ -1,0 +1,85 @@
+---
+
+- name: "Initialize repo index"
+  shell: "export TMPVAR=`which piprepo`; $TMPVAR build /tmp/{{ python_iso }}_artifacts/; unset TMPVAR"
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Initializing repo at /tmp/{{ python_iso }}_artifacts/"
+
+- name: "Start local repo servers"
+  include_role:
+    name: pip_repo
+  vars:
+    python_config_ver: "{{ python_ver }}"
+    twisted_pkg_dir: "/tmp/{{ python_iso }}_artifacts/"
+    repo_dir: "/tmp/{{ python_iso }}_artifacts/"
+    repo_port: "{{ (python_repo_port + add_port) }}"
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    index_var: add_port
+    label: "Starting repo server at /tmp/{{ python_iso }}_artifacts/ on port {{ (python_repo_port + add_port) }}"
+  register: iso_repos
+
+- name: "Create virtual environments"
+  shell: |
+    {% set command = "" -%} 
+    {%- if python_ver == 2 -%}
+      {%- set command = "python" + python_ver|string + " -m venv /tmp/" + python_iso + " _build" -%}
+    {%- elif python_ver == 3 -%}
+      {%- set command = "python" + python_ver|string + " -m virtualenv /tmp/" + python_iso + "_build" -%}
+    {%- else -%}
+    {%- endif -%}
+    {{ command }}
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Creating virtual environment at /tmp/{{ python_iso }}_build/"
+
+- name: "Configure pip to use local repo in virtual environment"
+  template:
+    src: pip.cfg.j2
+    dest: "/tmp/{{ iso_repo.python_iso }}_build/pip.conf"
+    backup: yes
+  vars:
+    trusted_hosts:
+      - "{{ ansible_default_ipv4.address }}"
+    extra_links: 
+      - "http://{{ ansible_default_ipv4.address }}:{{ (python_repo_port + iso_repo.add_port) }}/"
+    index_url:
+      - "http://{{ ansible_default_ipv4.address }}:{{ (python_repo_port + iso_repo.add_port) }}/"
+  loop: "{{ iso_repos.results }}"
+  loop_control:
+    loop_var: iso_repo
+    label: "Configuring repo for /tmp/{{ iso_repo.python_iso }}_build at http://{{ ansible_default_ipv4.address }}:{{ (python_repo_port + iso_repo.add_port) }}/"
+
+- name: "Install packages in virtual environments from local repos"
+  shell: "source /tmp/{{ python_iso }}_build/bin/activate; 
+          export PATH=$PATH:/tmp/{{ python_iso }}_build//bin;
+          python{{ python_ver }} -m pip install -U wheel setuptools pip scikit-build;
+          python{{ python_ver}} -m pip install 
+          -r /tmp/{{ python_iso }}_artifacts/requirements.txt 
+          --prefix=/tmp/{{ python_iso }}_build/;
+          deactivate"
+  async: 7200
+  poll: 0
+  loop: "{{ iso_list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Installing packages from /tmp/{{ python_iso }}_artifacts/ in /tmp/{{ python_iso }}_build/"
+  register: installed_pkg
+
+- name: "Check on installs"
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  loop: "{{ installed_pkg.results }}"
+  loop_control:
+    loop_var: "async_result_item"
+    label: "Successfully installed packages to {{ async_result_item.python_iso }}"
+  register: async_poll_results
+  until: async_poll_results.finished
+  retries: 120
+  delay: 60
+
+...

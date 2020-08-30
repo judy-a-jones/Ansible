@@ -1,0 +1,45 @@
+---
+
+- name: "Cleanup directories before export"
+  file:
+    path: "/tmp/{{ python_iso.0 }}_{{ python_iso.1 }}/"
+    state: absent
+  loop: "{{ iso_list | product(['build/pip.conf','artifacts/twistd.pid']) | list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Removing {{ python_iso.0 }}_{{ python_iso.1 }}/"
+
+#Replace with iso extract role
+#- name: "Export all isos"
+#  include_role:
+#    name:
+#  vars:
+#    src: "/tmp/{{ python_iso.0 }}_{{ python_iso.1 }}/"
+#    dest: "{{ artifact_dir }}/{{ python_iso.0 }}_{{ python_iso.1 }}.iso"
+#  loop: "{{ iso_list | product(['build','artifacts']) | list }}"
+#  loop_control:
+#    loop_var: python_iso
+#    label: "Exporting {{ python_iso.0 }}_{{ python_iso.1 }}.iso"
+
+- name: "Cleanup directories"
+  file:
+    path: "/tmp/{{ python_iso.0 }}_{{ python_iso.1 }}/"
+    state: absent
+  loop: "{{ iso_list | product(['build','artifacts']) | list }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Removing {{ python_iso.0 }}_{{ python_iso.1 }}/"
+
+- name: "Kill local pip repos"
+  shell: "for twisted in `ps -elf | grep twistd | grep -v grep | awk '{print $4}'`; do kill -9 $twisted; done"
+
+- name: "Close firewall ports for pip repos"
+  firewalld:
+    port: "{{ (python_repo_port + iso_repo.add_port) }}/tcp"
+    state: disabled
+  loop: "{{ iso_repos.results }}"
+  loop_control:
+    loop_var: iso_repo
+    label: "Closing Twistd port at {{ (python_repo_port + iso_repo.add_port) }}"
+
+...

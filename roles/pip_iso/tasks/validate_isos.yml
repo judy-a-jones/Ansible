@@ -1,0 +1,94 @@
+---
+
+#replace with iso extract role
+#- name: "Unpack Python isos"
+#  include_role:
+#    name: 
+#  vars:
+#    iso_source: "{{ artifact_dir }}/{{ python_iso }}_artifacts.iso"
+#    target_dir: "/tmp/{{ python_iso }}_validate"
+#  loop: "{{ existing_isos }}"
+#  loop_control:
+#    loop_var: python_iso
+#    label: "Unpacking {{ artifact_dir }}/{{ python_iso }}_artifacts.iso"
+
+- name: "Check for requirements file"
+  stat:
+    path: "/tmp/{{ python_iso }}_validate/requirements.txt"
+  register: current_iso_requirements
+  loop: "{{ existing_isos }}"
+  loop_control:
+    loop_var: python_iso
+    label: "Checking /tmp/{{ python_iso }}_validate/requirements.txt"
+
+- name: "Set facts for existing requirements file"
+  set_fact: 
+    existing_requirements: | 
+      {%- set existing_requirements = [] -%}
+      {%- for iso in current_iso_requirements.results -%}
+        {%- if iso.stat.exists == True -%}
+          {%- do existing_requirements.append(iso.python_iso) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ existing_requirements }}
+  when: existing_isos is defined and existing_isos|length >= 1
+
+- name: "Parse requirements files"
+  block:
+  - name: "Create validation files"
+    blockinfile:
+      path: "/tmp/{{ python_iso.name }}_validate/requirements_check"
+      block: |
+        {%- set package_list = "" -%}
+        {%- for package in (python_iso.packages + required_pip_packages)|sort -%}
+        {{ package }} 
+        {% endfor -%}
+      create: yes
+    loop: "{{ pip_packages }}"
+    loop_control:
+      loop_var: python_iso
+      label: "Creating /tmp/{{ python_iso.name }}_validate/requirements_check"
+    when: python_iso.name in existing_requirements
+  
+  - name: "Validate requirements files"
+    shell: "diff -wq /tmp/{{ python_iso }}_validate/requirements.txt /tmp/{{ python_iso }}_validate/requirements_check"
+    loop: "{{ existing_requirements }}"
+    loop_control:
+      loop_var: python_iso
+      label: "Validating /tmp/{{ python_iso }}_validate/requirements.txt"
+    register: requirements_checks
+  
+  - name: "Create list of isos to skip"
+    set_fact:
+      iso_skip_list: |
+        {%- set iso_skip_list = [] -%}
+        {%- for iso_check in requirements_checks.results -%}
+          {%- if iso_check.rc == 0 -%}
+            {%- do iso_skip_list.append(iso_check.python_iso) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ iso_skip_list }}
+  
+  - name: "Set isos to build"
+    set_fact:
+      iso_list: |
+        {%- set iso_list = [] -%}
+        {%- for iso in pip_packages -%}
+          {%- if iso.python_version == python_ver and iso.name not in iso_skip_list|default('') -%}
+            {%- do iso_list.append(iso.name) -%}
+          {%-endif -%}
+        {%- endfor -%}
+        {{ iso_list }}
+    when: python_release in pip_packages|map(attribute='python_version')|list
+
+  - name: "Remove unpacked isos"
+    file:
+      path: "/tmp/{{ python_iso.name }}_validate"
+      state: absent
+    loop: "{{ pip_packages }}"
+    loop_control:
+      loop_var: python_iso
+      label: "Removing /tmp/{{ python_iso.name }}_validate"
+  when: existing_requirements is defined and existing_requirements|length >= 1
+
+...

@@ -1,0 +1,19 @@
+#!/usr/bin/expect
+
+spawn sshpass -p {{ switch_password }} ssh root@{{ switch_ip }}
+expect "{{ switch_prompt }}"
+send "enable\r"
+expect "{{ switch_root_prompt }}"
+{% for _command in switch_commands %}
+
+send "{{ _command['command'] }}\r"
+{%  if _command['expected_question'] is defined %}
+expect "{{ switch_root_prompt }} {{ _command['expected_question'] }}"
+{%  else %}
+
+expect "{{ switch_root_prompt }}"
+{%  endif %}
+{% endfor %}
+send "logout\r"
+
+exit

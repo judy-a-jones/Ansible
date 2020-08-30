@@ -1,0 +1,23 @@
+---
+
+m1000e_switch1_cmc_name: "switch-1"
+m1000e_switch1_ip: ""
+m1000e_switch1_password: "{{ vault_m1000e_switch1_password }}"
+m1000e_switch1_prompt: "console>"
+m1000e_switch1_root_prompt: "console#"
+m1000e_switch1_logs: "{{ ansible_user_dir }}/{{ ansible_hostname }}-{{ ansible_date_time.year }}{{ ansible_date_time.month }}{{ ansible_date_time.day }}"
+m1000e_switch1_gateway: ""
+m1000e_switch1_location: ""
+m1000e_switch1_helper_ip: "{{ deploy_host_ip }}"
+
+m1000e_switch2_cmc_name: "switch-3"
+m1000e_switch2_ip: ""
+m1000e_switch2_password: "{{ vault_m1000e_switch2_password }}"
+m1000e_switch2_prompt: "Dell#"
+m1000e_switch2_root_prompt: "{{ m1000e_switch2_prompt }}"
+m1000e_switch2_logs: "{{ m1000e_switch1_logs }}"
+m1000e_switch2_gateway: "{{ m1000e_switch1_gateway }}"
+m1000e_switch2_location: "{{ m1000e_switch1_location }}"
+m1000e_switch2_helper_ip: "{{ m1000e_switch1_helper_ip }}"
+
+...

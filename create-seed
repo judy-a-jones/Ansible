@@ -1,0 +1,90 @@
+#!/bin/bash
+
+set -e
+
+usage="
+Usage:
+    $(basename "$0") [options]...
+
+- If --create or -c is provided, a new seed image will be created.
+- If --export or -e is provided, the seed vm will be shut down and exported
+     to artifacts/seed.ova.
+- If --import or -i is provided, the seed vm will be imported from /tmp/seed.ova
+- If --location or -l is provided with --import from specified location.
+- If --destroy or -d is provided, the seed vm will be destroyed.
+"
+
+trap "exit" INT
+
+HV="virtualbox"
+TARGET_INV="local"
+IMG_FORMAT="vdi"
+
+VAULT_PASS="~/vault_passwords/$TARGET_INV"
+TARGET_INV_PATH="deploy/$HV/inventory.$TARGET_INV"
+TARGET_VMD="deploy/$HV/VMDescription.$TARGET_INV"
+TMP_INV_PATH=/tmp/seed-inventory-$USER
+VBOXMANAGE=$(which vboxmanage)
+
+VM_NAME="seed"
+VM_DNS=$(/usr/bin/hostname -d)
+
+OPTS=`getopt -o cel:idh --longoptions=create,export,location:,import,destroy,help --name "$0" -- "$@"`
+if [[ $? != 0 ]]; then
+    echo "$usage"
+    exit 1
+fi
+
+CREATE=
+EXPORT=
+IMPORT=
+LOCATION=
+DESTROY=
+
+eval set -- "$OPTS"
+
+while [[ -n $1 ]]; do
+  case "$1" in
+    -i | --create ) CREATE="yes"; shift ;;
+    -e | --export ) EXPORT="yes"; shift ;;
+    -i | --import ) IMPORT="yes"; shift ;;
+    -l | --location ) LOCATION="$2"; shift 2;;
+    -d | --destroy ) DESTROY="yes"; shift ;;
+    -h | --help ) echo "$usage"; exit; shift ;;
+    -- ) shift;;
+  esac
+done
+
+if [[ -z $LOCATION ]]; then
+    LOCATION="/tmp/seed.ova"
+fi
+
+ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory -i $TARGET_INV_PATH extract_private_key.yml
+
+if [[ -n $DESTROY ]]; then
+    ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH obliterate_seed.yml
+    rm -rf $TMP_INV_PATH
+fi
+
+if [[ -n $CREATE ]]; then
+    ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH --extra-vars="local_vmd_path=$TARGET_VMD final_image_format=$IMG_FORMAT" configure_seed_images.yml
+    ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH --extra-vars="tmp_inv_path=$TMP_INV_PATH vm_name=$VM_NAME ansible_ssh_private_key_file='./id_rsa'" start_seed.yml
+    ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH -i $TMP_INV_PATH --extra-vars="vm_name=$VM_NAME vm_dns=$VM_DNS ansible_ssh_private_key_file='./id_rsa'" provision_seed.yml
+    CREATED="yes"
+fi
+
+if [[ -n $EXPORT ]]; then
+    rm -rf $LOCATION
+    ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH --extra-vars="export_location=$LOCATION vm_name=$VM_NAME ansible_ssh_private_key_file='./id_rsa' vboxmanage_path=$VBOXMANAGE" export_seed.yml
+fi
+
+if [[ -n $DESTROY ]] && [[ $CREATED == "yes" ]]; then
+    ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH obliterate_seed.yml
+    rm -rf $TMP_INV_PATH
+fi
+
+if [[ -n $IMPORT ]]; then
+    $VBOXMANAGE import $LOCATION
+
+fi
+

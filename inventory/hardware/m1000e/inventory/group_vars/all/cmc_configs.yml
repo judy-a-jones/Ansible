@@ -1,0 +1,7 @@
+---
+
+m1000e_cmc: "X.X.X.X"
+
+cmc_password: "{{ vault_cmc_password }}"
+
+...

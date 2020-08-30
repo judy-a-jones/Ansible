@@ -1,0 +1,22 @@
+[global]
+
+{% if trusted_hosts|length %}
+trusted_host =
+{%- for line in trusted_hosts %}
+ {{ line }}
+{% endfor %}
+{% endif %}
+
+{% if extra_links|length %}
+find_links =
+{%- for line in extra_links %}
+ {{ line }}
+{% endfor %}
+{% endif %}
+
+{% if index_url|length %}
+index_url =
+{%- for line in index_url %}
+ {{ line }}
+{% endfor %}
+{% endif -%}

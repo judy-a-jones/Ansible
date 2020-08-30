@@ -1,0 +1,34 @@
+---
+
+#Replace with yum
+#- name: "Install Python{{ python_config_ver}} packages"
+#  vars:
+#    packages: "{{ yum_packages }}"
+
+- name: "Install Twisted for Pip{{ python_config_ver }}"
+  pip:
+    name: Twisted
+    state: latest
+    executable: "pip{{ python_config_ver }}"
+    extra_args: "--no-index --find-links={{ twisted_pkg_dir }}/ Twisted"
+
+- name: "Configure repo port for Twisted"
+  firewalld:
+    port: "{{ repo_port }}/tcp"
+    permanent: yes
+    state: enabled
+  register: open_port
+
+- name: "Restart firewalld to open port"
+  systemd:
+    name: firewalld
+    state: restarted
+  when: open_port.changed
+
+- name: "Start Twisted server for {{ repo_dir }}"
+  shell: "/usr/local/bin/twistd --pidfile {{ repo_dir}}/twistd.pid web --path {{ repo_dir }} --port tcp:{{ repo_port }}"
+  register: twisted_start
+  failed_when: "'An error has occurred' in twisted_start.stdout"
+  changed_when: "'Another twistd server is running' not in twisted_start.stdout"
+
+...

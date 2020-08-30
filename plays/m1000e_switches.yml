@@ -1,0 +1,43 @@
+---
+# Ansible play to configure m1000e switches
+
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: yes
+
+  tasks:
+    - name: Configure 1G M1000e Switch
+      include_role:
+        name: hdw_m1000e_switch
+      vars:
+        switch_name: "{{ m1000e_switch1_cmc_name }}"
+        config_file: "switch1_config"
+        switch_password: "{{ m1000e_switch1_password }}"
+        switch_ip: "{{ m1000e_switch1_ip }}"
+        switch_prompt: "{{ m1000e_switch1_prompt }}"
+        switch_root_prompt: "{{ m1000e_switch1_root_prompt }}"
+        log_dir: "{{ m1000e_switch1_logs }}"
+        switch_vlans: "{{ m1000e_vlans }}"
+        switch_gateway: "{{ m1000e_switch1_gateway }}"
+        switch_location: "{{ m1000e_switch1_location }}"
+        switch_helper_ip: "{{ m1000e_switch1_helper_ip }}"
+        switch_interfaces: "{{ m1000e_half_height_interfaces }}"
+
+    - name: Configure 10G M1000e Switch
+      include_role:
+        name: hdw_m1000e_switch
+      vars:
+        switch_name: "{{ m1000e_switch2_cmc_name }}"
+        config_file: "switch2_config"
+        switch_password: "{{ m1000e_switch2_password }}"
+        switch_ip: "{{ m1000e_switch2_ip }}"
+        switch_prompt: "{{ m1000e_switch2_prompt }}"
+        switch_root_prompt: "{{ m1000e_switch2_root_prompt }}"
+        log_dir: "{{ m1000e_switch2_logs }}"
+        switch_vlans: "{{ m1000e_vlans }}"
+        switch_gateway: "{{ m1000e_switch2_gateway }}"
+        switch_location: "{{ m1000e_switch2_location }}"
+        switch_helper_ip: "{{ m1000e_switch2_helper_ip }}"
+        switch_interfaces: "{{ m1000e_half_height_interfaces }}"
+
+...

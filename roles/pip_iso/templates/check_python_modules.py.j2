@@ -1,0 +1,47 @@
+#Add majic
+
+modules = {}
+
+{% set test_list = [] -%}
+{%- set test = "" -%}
+for module in [ '
+{%- for package in package_list -%}
+  {%- if 'numpy' in package -%}
+    {%- set test = "numpy" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'scipy' in package -%}
+    {%- set test = "scipy" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'matplotib' in package -%}
+    {%- set test = "matplotlib" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'Cython' in package -%}
+    {%- set test = "cython" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'scikit-image' in package -%}
+    {%- set test = "skimage" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'scikit-learn' in package -%}
+    {%- set test = "sklearn" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'opencv' in package -%}
+    {%- set test = "cv2" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'pandas' in package -%}
+    {%- set test = "pandas" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'tensorflow' in package -%}
+    {%- set test = "tensorflow" -%}
+    {%- do test_list.append(test) -%}
+  {%- elif 'Keras' in package -%}
+    {%- set test = "keras" -%}
+    {%- do test_list.append(test) -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ test_list | unique | join('\', \'') }}' ]:
+    try:
+        modules[module] = __import__(module)
+        print ("Successfully imported " + module + " " + str(modules[module].__version__)  + ".")
+    except ImportError:
+        print ("Error importing " + module + '.')
+

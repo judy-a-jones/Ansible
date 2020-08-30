@@ -1,0 +1,189 @@
+---
+
+  - name: Copy template file to /tmp
+    template:
+      src: "{{ config_file }}.j2"
+      dest: "/tmp/{{ config_file }}.scr"
+    with_items: "{{ switch_vlans }}"
+
+  - name: Copy current running config to /tmp/
+    include_role:
+      name: hdw_switch_enable
+    vars:
+      switch_commands:
+        - command: "copy running-config scp://root:{{ deploy_host_root_password }}@{{ deploy_host_ip }}//tmp/{{ config_file }}_current.scr"
+          expected_question: "Remote Password:"
+        - command: "{{ deploy_host_root_password }}"
+          expected_question: "Are you sure you want to start? (y/n)"
+        - command: "y"
+      security_check:
+        - "{{ deploy_host_root_password }}"
+
+  - name: Sort config files
+    shell: "cat /tmp/{{ config_file }}_current.scr | sort > /tmp/{{ config_file }}_current.sorted; cat /tmp/{{ config_file }}.scr | sort > /tmp/{{ config_file }}.sorted"
+
+  - name: Compare current runnig config with expected running config
+    shell: "diff -yw --suppress-common-lines /tmp/{{ config_file }}_current.sorted /tmp/{{ config_file }}.sorted | egrep -v 'Last configuration change|config last updated|password|authentication|line|exit|ip ssh server|snmp-server community'"
+    register: current_running
+    failed_when: current_running.changed == "false"
+
+  - name: Removed sorted config files
+    local_action:
+      module: file
+      path: "{{ item }}"
+      state: absent
+    become: yes
+    with_items:
+      - "/tmp/{{ config_file }}_current.sorted"
+      - "/tmp/{{ config_file }}.sorted"
+
+  - name: Remove current running config from /tmp
+    local_action:
+      module: file
+      path: "/tmp/{{ config_file }}_current.scr"
+      state: absent
+    become: yes
+
+  - name: Configure switch if current and expected config differ
+    block:
+    - name: Backup current running config to startup
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "write"
+            expected_question: "Are you sure you want to save? (y/n)"
+          - command: "y"
+
+    - name: Remove outdated config files
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "delete {{ config_file }}.scr"
+            expected_question: "Delete test (Y/N)?"
+          - command: "Y"
+
+    - name: Copy new config to flash
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "copy scp://root:{{ deploy_host_root_password }}@{{ deploy_host_ip }}//tmp/{{ config_file }}.scr flash://{{ config_file }}.scr"
+            expected_question: "Remote Password:"
+          - command: "{{ deploy_host_root_password }}"
+            expected_question: "Are you sure you want to start? (y/n)"
+          - command: "y"
+        security_check:
+          - "{{ deploy_host_root_password }}"
+
+    - name: Execute new config
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "copy flash://{{ config_file }}.scr running-config"
+            expected_question: "Are you sure you want to start? (y/n)"
+          - command: "y"
+
+    - name: Stat output file
+      shell: "egrep 'Error|Script validation failed|File transfer failed' {{ log_dir }}/expect_last.out"
+      register: new_cfg_execute
+      failed_when: new_cfg_execute.changed == "false"
+
+    - name: Exit play if script execute fails
+      fail:
+        msg: "New script {{ config_file }}.scr failed. Running config has not changed."
+      when: new_cfg_execute.stdout != ""
+
+    - name: Test new config
+      shell: "ping -c 1 {{ switch_ip }}"
+      retries: 20
+      delay: 3
+      register: new_cfg_test
+
+    - name: Handle bad configuration if switch failed to ping
+      block:
+        - name: Fall back to backup config
+          shell: "sshpass -p {{ cmc_password }} ssh root@{{ m1000e_cmc }} racadm chassisaction -m {{ switch_name }} powercycle"
+        - fail:
+            msg: "New switch config failed; reverted to original configuration. Please check switch config values."
+      when: new_cfg_test.rc != 0
+
+    - name: Set new config to startup config
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "write"
+            expected_question: "Are you sure you want to save? (y/n)"
+          - command: "y"
+
+    - name: Remove config script from flash
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "delete {{ config_file }}.scr"
+            expected_question: "Delete test (Y/N)?"
+          - command: "Y"
+
+    - name: Copy new config to /tmp/ 
+      include_role:
+        name: hdw_switch_enable
+      vars:
+        switch_commands:
+          - command: "copy running-config scp://root:{{ deploy_host_root_password }}@{{ deploy_host_ip }}//tmp/{{ config_file }}_new.scr"
+            expected_question: "Remote Password:"
+          - command: "{{ deploy_host_root_password }}"
+            expected_question: "Are you sure you want to start? (y/n)"
+          - command: "y"
+        security_check:
+          - "{{ deploy_host_root_password }}"
+
+    - name: Sort config files
+      shell: "cat /tmp/{{ config_file }}_new.scr | sort > /tmp/{{ config_file }}_new.sorted; cat /tmp/{{ config_file }}.scr | sort > /tmp/{{ config_file }}.sorted"
+
+    - name: Compare current running config with expected running config
+      shell: "diff -yw --suppress-common-lines /tmp/{{ config_file }}_new.sorted /tmp/{{ config_file }}.sorted | egrep -v 'Last configuration change|config last updated|password|authentication|line|exit|ip ssh server|snmp-server community'"
+      register: check_conf
+      failed_when: check_conf.changed == "false"
+
+    - name: Handle bad configuration if new switch config doesn't match
+      block:
+        - name: Copy current running config to logs
+          local_action:
+            module: copy
+            src: "/tmp/{{ config_file }}_new.scr"
+            dest: "{{ log_dir }}/{{ config_file }}_bad-{{ ansible_date_time.iso8601_basic_short }}"
+            owner: "{{ ansible_env.USER }}"
+        - fail:
+            msg: "New switch config doesn't match template config. New switch config available at {{ log_dir }}/{{ config_file }}_bad-{{ ansible_date_time.iso8601_basic_short }}"
+      when: check_conf.stdout != ""
+
+    - name: Removed sorted config files
+      local_action:
+        module: file
+        path: "{{ item }}"
+        state: absent
+      become: yes
+      with_items:
+        - "/tmp/{{ config_file }}_new.sorted"
+        - "/tmp/{{ config_file }}.sorted"
+
+    - name: Remove new running config from /tmp
+      local_action:
+        module: file
+        path: "/tmp/{{ config_file }}_new.scr"
+        state: absent
+      become: yes
+
+    when: current_running.stdout != ""
+
+  - name: Remove template file from /tmp
+    local_action:
+      module: file
+      path: "/tmp/{{ config_file }}.scr"
+      state: absent
+
+...

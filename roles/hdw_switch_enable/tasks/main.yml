@@ -1,0 +1,81 @@
+---
+
+- set_fact:
+    security_check: "{{ switch_password }}"
+  when: security_check is not defined
+
+- name: "Check for current log dir at {{ log_dir }}"
+  local_action:
+    module: stat
+    path: "{{ log_dir }}"
+  register: log_dir
+
+- name: "Create current log dir at {{ log_dir }}"
+  local_action:
+    module: file
+    path: "{{ log_dir }}"
+    state: directory
+
+- name: Set script fact
+  set_fact:
+    current_script: "{{ log_dir }}/expect_script-{{ lookup('pipe','date +%Y%m%dT%H%M%S') }}"
+
+- name: Create expect script
+  template:
+    src: "enabled_commands.j2"
+    dest: "{{ current_script }}"
+    mode: '0777'
+
+- name: Run expect script
+  local_action:
+    module: script
+    cmd: "{{ current_script }}"
+  register: run_output
+
+- name: Security check - expect script
+  local_action:
+    module: replace
+    path: "{{ current_script }}"
+    regexp: "{{ item }}"
+  no_log: True
+  with_items:
+    - "{{ security_check }}"
+    - "{{ switch_password }}"
+
+- name: Write task output to last log
+  local_action:
+    module: copy
+    content: "{{ run_output.stdout_lines }}"
+    dest: "{{ log_dir }}/expect_last.out"
+
+- name: Security check - last log
+  local_action:
+    module: replace
+    path: "{{ log_dir }}/expect_last.out"
+    regexp: "{{ item }}"
+  no_log: True
+  with_items:
+    - "{{ security_check }}"
+    - "{{ switch_password }}"
+
+- name: Append task output to full log
+  local_action:
+    module: blockinfile
+    block: |
+      "{{ lookup('pipe','date +%Y-%m-%dT%H:%M:%S') }}" "{{ run_output.stdout_lines }}"
+    dest: "{{ log_dir }}/expect_history.out"
+    marker: ""
+    insertafter: EOF
+    create: yes
+
+- name: Security check - full log
+  local_action:
+    module: replace
+    path: "{{ log_dir }}/expect_history.out"
+    regexp: "{{ item }}"
+  no_log: True
+  with_items:
+    - "{{ security_check }}"
+    - "{{ switch_password }}"
+
+...

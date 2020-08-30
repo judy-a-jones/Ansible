@@ -1,0 +1,29 @@
+---
+
+# vars file for pip_iso
+
+yum_packages:
+#  - package: "python2-pip"
+#    repo:
+#      name: epel
+#      baseurl: "https://download-ib01.fedoraproject.org/pub/epel/7/x86_64/"
+#      gpgkey: "https://download-ib01.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7"
+  - package: "python3"
+  - package: "python3-devel"
+  - package: "gcc"
+  - package: "mesa-libGL"
+
+required_pip_packages:
+  - "wheel"
+  - "pip"
+  - "setuptools"
+  - "virtualenv"
+  - "scikit-build"
+  - "twisted"
+  - "piprepo"
+
+supported_python_versions:
+  - 2
+  - 3
+
+...

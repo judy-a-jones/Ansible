@@ -1,0 +1,186 @@
+!Current Configuration:
+!System Description "PowerConnect M6348, 5.1.15.2, VxWorks 6.6"
+!System Software Version 5.1.15.2
+!System Operational Mode "Normal"
+!
+configure
+vlan {% set full_list = switch_vlans|sort(attribute='vlan_id')|map(attribute='vlan_id') | list -%}
+{%- set current_range = {} -%}
+{%- set ranges = [] -%}
+{%- set vlan_list = "" -%}
+{%- for item in full_list -%}
+{%-   if 'first' not in current_range -%}
+{%-     do current_range.__setitem__('first', item) -%}
+{%-   endif -%}
+{%-   if loop.index0 + 1 < full_list|length and full_list[loop.index0 + 1] > item + 1 -%}
+{%-     do current_range.__setitem__('last', full_list[loop.index0]) -%}
+{%-     do ranges.append(dict(current_range)) -%}
+{%-     do current_range.pop('first') -%}
+{%-     do current_range.pop('last') -%}
+{%-   elif loop.index0 + 1 >= full_list| length -%}
+{%-     do current_range.__setitem__('last', full_list[loop.index0]) -%}
+{%-     do ranges.append(dict(current_range)) -%}
+{%-     do current_range.pop('first') -%}
+{%-     do current_range.pop('last') -%}
+{%-   endif -%}
+{%- endfor -%}
+{%- for range in ranges -%}
+{%- if range.first != range.last -%}
+{{ range.first }}-{{ range.last }}
+{%- else -%}
+{{ range.first }}
+{%- endif -%}
+{%- if loop.index != loop.length -%}
+,
+{%- endif -%}
+{%- endfor %}
+
+exit
+slot 1/0 1    ! PowerConnect M6348
+slot 2/0 1    ! PowerConnect M6348
+sntp unicast client enable
+clock summer-time recurring USA zone "CDT"
+clock timezone -6 minutes 0
+stack
+member 1 1    ! PCM6348
+member 2 1    ! PCM6348
+exit
+ip routing
+ip default-gateway {{ switch_gateway }}
+ip route 0.0.0.0 0.0.0.0 {{ switch_gateway }} 253
+ip helper-address {{ switch_helper_ip }}
+interface vlan 1 1
+exit
+{% set count = 1 %}
+{% for _vlan in switch_vlans|sort(attribute='vlan_id') %}
+{% set count = count + 1 %}
+interface vlan {{ _vlan['vlan_id'] }} {{ count }}
+{%  if _vlan['switch1_ip'] is defined %}
+ip address {{ _vlan['switch1_ip'] }} 255.255.255.0
+{%  else %}
+{%  endif %}
+{% endfor %}
+exit
+!
+{% set interface_info = [] -%}
+{%- set interface_list =[] -%}
+{%- for blade in switch_interfaces -%}
+{%-   for interface in blade['switch1_interfaces'] -%}
+{%-     do interface_list.append({ "interface": interface }) -%}
+{%-   endfor -%}
+{%-   for interface in interface_list -%}
+{%-     do interface_info.append({ "interface": interface['interface'], "description": blade['description'], "switchport_mode": blade['switchport_mode'], "vlans": blade['vlans']|replace("[","")|replace("]","") }) -%}
+{%-   endfor -%}
+{%- set interface_list = [] -%}
+{%- endfor -%}
+{% for interface in interface_info %}
+interface Gi{{ interface['interface'] }}
+description "{{ interface['description'] }}"
+switchport {{ interface['switchport_mode'] }} vlan {{ interface['vlans']|replace("-","")|trim }}
+exit
+!
+{% endfor %}
+{% set uplink_info = [] -%}
+{%- set uplink_list =[] -%}
+{%- for uplink in m1000e_uplink_interfaces -%}
+{%-   for interface in uplink['switch1_interfaces'] -%}
+{%-     do uplink_list.append({ "interface": interface }) -%}
+{%-   endfor -%}
+{%-   for interface in uplink_list -%}
+{%-     do uplink_info.append({ "interface": interface['interface'], "description": uplink['description'], "channel-group": uplink['channel-group'], "channel-group_mode": uplink['channel-group_mode'] }) -%}
+{%-   endfor -%}
+{%- set uplink_list = [] -%}
+{%- endfor -%}
+{% for interface in uplink_info %}
+interface Te{{ interface['interface'] }}
+channel-group {{ interface['channel-group'] }} mode {{ interface['channel-group_mode'] }}
+description "{{ interface['description'] }}"
+exit
+!
+{% endfor %}
+{% for uplink in m1000e_uplink_interfaces %}
+interface port-channel {{ uplink['channel-group'] }}
+description "{{ uplink['description'] }}"
+switchport mode {{ uplink['switchport_mode'] }}
+switchport {{ uplink['switchport_mode'] }} {% endfor -%} allowed vlan {% set full_list = switch_vlans|sort(attribute='vlan_id')|map(attribute='vlan_id') | list -%}
+{%- set current_range = {} -%}
+{%- set ranges = [] -%}
+{%- set vlan_list = "" -%}
+{%- for item in full_list -%}
+{%-   if 'first' not in current_range -%}
+{%-     do current_range.__setitem__('first', item) -%}
+{%-   endif -%}
+{%-   if loop.index0 + 1 < full_list|length and full_list[loop.index0 + 1] > item + 1 -%}
+{%-     do current_range.__setitem__('last', full_list[loop.index0]) -%}
+{%-     do ranges.append(dict(current_range)) -%}
+{%-     do current_range.pop('first') -%}
+{%-     do current_range.pop('last') -%}
+{%-   elif loop.index0 + 1 >= full_list| length -%}
+{%-     do current_range.__setitem__('last', full_list[loop.index0]) -%}
+{%-     do ranges.append(dict(current_range)) -%}
+{%-     do current_range.pop('first') -%}
+{%-     do current_range.pop('last') -%}
+{%-   endif -%}
+{%- endfor -%}
+{%- for range in ranges -%}
+{%- if range.first != range.last -%}
+{{ range.first }}-{{ range.last }}
+{%- else -%}
+{{ range.first }}
+{%- endif -%}
+{%- if loop.index != loop.length -%}
+,
+{%- endif -%}
+{% endfor %}
+
+exit
+!
+{% set breakout_info = [] -%}
+{%- set breakout_list =[] -%}
+{%- for breakout in m1000e_breakout_interfaces -%}
+{%-   for interface in breakout['switch1_interfaces'] -%}
+{%-     do breakout_list.append({ "interface": interface }) -%}
+{%-   endfor -%}
+{%-   for interface in breakout_list -%}
+{%-     do breakout_info.append({ "interface": interface['interface'], "description": breakout['description'], "switchport_mode": breakout['switchport_mode'] }) -%}
+{%-   endfor -%}
+{%- set breakout_list = [] -%}
+{%- endfor -%}
+{% for interface in breakout_info %}
+interface Te{{ interface['interface'] }}
+description "{{ interface['description'] }}"
+switchport mode {{ interface['switchport_mode'] }}
+switchport {{ interface['switchport_mode'] }} {% endfor -%} allowed vlan {% set full_list = switch_vlans|sort(attribute='vlan_id')|map(attribute='vlan_id') | list -%}
+{%- set current_range = {} -%}
+{%- set ranges = [] -%}
+{%- set vlan_list = "" -%}
+{%- for item in full_list -%}
+{%-   if 'first' not in current_range -%}
+{%-     do current_range.__setitem__('first', item) -%}
+{%-   endif -%}
+{%-   if loop.index0 + 1 < full_list|length and full_list[loop.index0 + 1] > item + 1 -%}
+{%-     do current_range.__setitem__('last', full_list[loop.index0]) -%}
+{%-     do ranges.append(dict(current_range)) -%}
+{%-     do current_range.pop('first') -%}
+{%-     do current_range.pop('last') -%}
+{%-   elif loop.index0 + 1 >= full_list| length -%}
+{%-     do current_range.__setitem__('last', full_list[loop.index0]) -%}
+{%-     do ranges.append(dict(current_range)) -%}
+{%-     do current_range.pop('first') -%}
+{%-     do current_range.pop('last') -%}
+{%-   endif -%}
+{%- endfor -%}
+{%- for range in ranges -%}
+{%- if range.first != range.last -%}
+{{ range.first }}-{{ range.last }}
+{%- else -%}
+{{ range.first }}
+{%- endif -%}
+{%- if loop.index != loop.length -%}
+,
+{%- endif -%}
+{% endfor %}
+
+exit
+snmp-server engineid local 800002a203d067e591f206
+exit

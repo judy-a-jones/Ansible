@@ -1,0 +1,303 @@
+#import perseus
+
+from devito.compiler import Compiler
+class JJ_SystemCompiler(Compiler):
+
+    def __init__(self, *args, **kwargs):
+        super(JJ_SystemCompiler, self).__init__(*args, **kwargs)
+
+        print("JJ Init of JJ_SystemCompiler")
+
+        self.cflags += [ '-march=native'
+                       , '-Wno-unused-result'
+                       , '-Wno-unused-variable'
+                       , '-Wno-unused-but-set-variable'
+                       , '-ffast-math'
+                       ]
+
+        language = kwargs.pop('language', configuratJJ['language'])
+        self.ldflags += ['-fopenmp']
+
+    def __lookup_cmds__(self):
+        self.CC = 'gcc'
+        self.CXX = 'g++'
+        self.MPICC = 'mpicc'
+        self.MPICXX = 'mpicxx'
+
+class JJ_RHDT6(Compiler):
+
+    def __init__(self, *args, **kwargs):
+        super(JJ_RHDT6, self).__init__(*args, **kwargs)
+
+        print("JJ Init of JJ_RHDT6")
+
+        self.cflags += [ '-march=native'
+                       , '-Wno-unused-result'
+                       , '-Wno-unused-variable'
+                       , '-Wno-unused-but-set-variable'
+                       , '-ffast-math'
+                       , '-g0'
+                       , '-O3'
+                       , '-ftree-vectorize'
+                       , '-fopt-info-optimized'
+                       ]
+
+        language = kwargs.pop('language', configuratJJ['language'])
+        self.ldflags += ['-fopenmp']
+
+    def __lookup_cmds__(self):
+        self.CC = '/opt/rh/devtoolset-6/root/usr/bin/gcc'
+        self.CXX = '/opt/rh/devtoolset-6/root/usr/bin/g++'
+        self.MPICC = 'none'
+        self.MPICXX = 'none'
+
+class JJ_RHDT8(Compiler):
+
+    def __init__(self, *args, **kwargs):
+        super(JJ_RHDT8, self).__init__(*args, **kwargs)
+
+        print("JJ Init of JJ_RHDT8")
+
+        self.cflags += [ '-march=native'
+                       , '-Wno-unused-result'
+                       , '-Wno-unused-variable'
+                       , '-Wno-unused-but-set-variable'
+                       , '-ffast-math'
+                       , '-g0'
+                       , '-O3'
+                       , '-ftree-vectorize'
+                       , '-fopt-info-optimized'
+                       ]
+
+        language = kwargs.pop('language', configuratJJ['language'])
+        self.ldflags += ['-fopenmp']
+
+    def __lookup_cmds__(self):
+        self.CC = '/opt/rh/devtoolset-8/root/usr/bin/gcc'
+        self.CXX = '/opt/rh/devtoolset-8/root/usr/bin/g++'
+        self.MPICC = 'none'
+        self.MPICXX = 'none'
+
+class JJ_RHDT9(Compiler):
+
+    def __init__(self, *args, **kwargs):
+        super(JJ_RHDT9, self).__init__(*args, **kwargs)
+
+        print("JJ Init of JJ_RHDT9")
+
+        self.cflags += [ '-march=native'
+                       , '-Wno-unused-result'
+                       , '-Wno-unused-variable'
+                       , '-Wno-unused-but-set-variable'
+                       , '-ffast-math'
+                       , '-O3'
+                       , '-flto'
+                       , '-mprefer-vector-width=512'
+                       , '-ftree-vectorize'
+                       , '-fopt-info-optimized'
+                       ]
+
+        language = kwargs.pop('language', configuratJJ['language'])
+        self.ldflags += ['-fopenmp']
+
+    def __lookup_cmds__(self):
+        self.CC = '/opt/rh/devtoolset-9/root/usr/bin/gcc'
+        self.CXX = '/opt/rh/devtoolset-9/root/usr/bin/g++'
+        self.MPICC = 'none'
+        self.MPICXX = 'none'
+
+class JJ_LLVMTS7(Compiler):
+
+    def __init__(self, *args, **kwargs):
+        super(JJ_LLVMTS7, self).__init__(*args, **kwargs)
+
+        print("JJ Init of JJ_LLVMTS7")
+
+        self.cflags += [ '-march=native'
+                       , '-Wno-unused-result'
+                       , '-Wno-unused-const-variable'
+                       , '-ffast-math'
+                       , '-g0'
+                       , '-O3'
+                       , '-Rpass=loop-vectorize'
+                       , '-Rpass-missed=loop-vectorize'
+                       ]
+
+        language = kwargs.pop('language', configuratJJ['language'])
+
+    def __lookup_cmds__(self):
+        self.CC = '/opt/rh/llvm-toolset-7/root/usr/bin/clang'
+        self.CXX = '/opt/rh/llvm-toolset-7/root/usr/bin/clang++'
+        self.MPICC = 'none'
+        self.MPICXX = 'none'
+
+class JJ_Intel18(Compiler):
+
+    def __init__(self, *args, **kwargs):
+        super(JJ_Intel18, self).__init__(*args, **kwargs)
+
+        print("JJ Init of JJ_Intel18")
+
+        self.cflags += [ '-march=native'
+                       , '-g0'
+                       , '-Ofast'
+                       , '-ipo'
+                       , '-qopenmp'
+                       , '-qopt-zmm-usage=high' # force AVX512
+                       , '-qopt-report5'
+                       ]
+
+        language = kwargs.pop('language', configuratJJ['language'])
+
+    def __lookup_cmds__(self):
+        self.CC = 'icc'
+        self.CXX = 'icpc'
+        self.MPICC = 'none'
+        self.MPICXX = 'none'
+
+
+from devito import compiler_registry
+compiler_registry['JJ_SystemCompiler'] = JJ_SystemCompiler
+compiler_registry['JJ_RHDT6'         ] = JJ_RHDT6
+compiler_registry['JJ_RHDT8'         ] = JJ_RHDT8
+compiler_registry['JJ_RHDT9'         ] = JJ_RHDT9
+compiler_registry['JJ_LLVMTS7'       ] = JJ_LLVMTS7
+compiler_registry['JJ_Intel18'       ] = JJ_Intel18
+
+from devito import configuratJJ
+
+configuratJJ.add("compiler", "JJ_SystemCompiler", list(compiler_registry), callback=lambda i: compiler_registry[i]())
+configuratJJ.add("compiler", "JJ_RHDT6"         , list(compiler_registry), callback=lambda i: compiler_registry[i]())
+configuratJJ.add("compiler", "JJ_RHDT8"         , list(compiler_registry), callback=lambda i: compiler_registry[i]())
+configuratJJ.add("compiler", "JJ_RHDT9"         , list(compiler_registry), callback=lambda i: compiler_registry[i]())
+configuratJJ.add("compiler", "JJ_LLVMTS7"       , list(compiler_registry), callback=lambda i: compiler_registry[i]())
+configuratJJ.add("compiler", "JJ_Intel18"       , list(compiler_registry), callback=lambda i: compiler_registry[i]())
+
+configuratJJ['compiler'] = 'JJ_SystemCompiler'
+
+import numpy as np
+
+from examples.seismic import Receiver
+from examples.seismic import RickerSource
+from examples.seismic import Model, plot_velocity, TimeAxis
+from devito import TimeFunctJJ
+from devito import Eq, solve
+from devito import Operator
+from numpy import linalg as LA
+
+num_runs = 1
+
+t0 = 0 # t0 : SimulatJJ starts a t=0
+tn = 500# tn : SimulatJJ tmax lasts tn ms
+f0 = 10/1000# f0 : Source peak frequency in KHz
+src_type = "Ricker"
+t_order = 2
+
+nrec = 1681
+nx = 201
+nz = 101
+nb = 20
+dx = 10
+dz = 20
+s_order = 8 # space_order : FD spatial stencil order
+dy = 10
+ny = 201
+
+src_id = 1
+src_x  = 1000
+src_d  = 30
+
+shape   = (nx, ny, nz)
+spacing = (dx, dy, dz)
+origin = (0., 0., 0.)
+v = np.empty(shape, dtype=np.float32)
+v[:,:,:] = 1.5
+
+
+model = Model(vp=v, origin=origin, shape=shape, spacing=spacing,
+              space_order=s_order, nbl=nb, bcs="damp")
+
+dt = model.critical_dt
+dt = 2.0
+coeff = model.grid.dim
+
+time_range = TimeAxis(start=t0, stop=tn, step=dt)
+nt = time_range.num  # number of time steps computed as explained above
+
+if src_type == 'Ricker' : 
+    src = RickerSource(
+        name='src',
+        grid=model.grid,
+        f0=f0,
+        time_range=time_range)  
+else : 
+    src = GaborSource(
+        name='src',
+        grid=model.grid,
+        f0=f0,
+        time_range=time_range) 
+
+src.coordinates.data[0,0] = src_x
+src.coordinates.data[0,-1] = src_d
+src.coordinates.data[0,1] = src_x
+
+rec = Receiver(
+    name='rec',
+    grid=model.grid,
+    npoint=nrec,
+    time_range=time_range)  
+
+i = 0
+
+nxl = 41
+nil = 41
+a = np.linspace(0,2000,nxl)
+b = np.resize(a,(nxl,nil))
+c = np.zeros(nxl*nil)
+d = np.zeros(nxl*nil)
+for ixl in range (0,nxl) : 
+    for iil in range (0,nil) : 
+        c[i] = b[ixl,iil]
+        d[i] = b[iil,ixl]
+        i += 1 
+
+for i in range( 0, nrec ):
+    rec.coordinates.data[i,0] = c[i]
+    rec.coordinates.data[i,1] = d[i]
+    rec.coordinates.data[i, 2] = 30.0
+
+vnx = nx+2*nb 
+vnz = nz+2*nb
+
+u = TimeFunctJJ(name="u", grid=model.grid, time_order=t_order,
+                 space_order=s_order, save=time_range.num)
+pde = model.m * u.dt2 - u.laplace + model.damp * u.dt
+stencil = Eq(u.forward, solve(pde, u.forward))
+src_term = src.inject(field=u.forward, expr=src * dt**2 / model.m,
+                      offset=model.nbl)
+rec_term = rec.interpolate(expr=u, offset=model.nbl)
+
+op = Operator( [stencil] + src_term + rec_term
+             , subs=model.spacing_map
+             , opt=('advanced', {'openmp': False})
+             )
+
+from devito.operator.profiling import PerfKey
+import statistics
+stats = []
+for i in range( 0, num_runs ):
+    summary = op( time         = nt-2
+                , dt           = 2.0
+                , x0_blk0_size = 128 # for 1 core
+                , y0_blk0_size =  64
+                )
+    stats.append( summary[ PerfKey('sectJJ0', None) ].time )
+
+print( "Mean: %.2f  Min: %.2f  Median: %.2f  Max: %.2f  StdDev: %.2f" % ( statistics.mean  ( stats )
+                                                                        , min              ( stats )
+                                                                        , statistics.median( stats )
+                                                                        , max              ( stats )
+                                                                        , statistics.stdev ( stats )
+                                                                        )                            )
+
+
