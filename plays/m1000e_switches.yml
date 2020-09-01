@@ -6,6 +6,8 @@
   gather_facts: yes
 
   tasks:
+  
+  #Need to update this with some ansible facts and see if I can use different modules for different switches instead of this expect script madness
     - name: Configure 1G M1000e Switch
       include_role:
         name: hdw_m1000e_switch
