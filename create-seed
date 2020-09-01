@@ -66,6 +66,8 @@ if [[ -n $DESTROY ]]; then
     rm -rf $TMP_INV_PATH
 fi
 
+
+#Need to update this to run on all versions of hypervisors with some ansible facts at the beginning
 if [[ -n $CREATE ]]; then
     ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH --extra-vars="local_vmd_path=$TARGET_VMD final_image_format=$IMG_FORMAT" configure_seed_images.yml
     ansible-playbook --vault-id $VAULT_PASS -i deploy/base/inventory/ -i $TARGET_INV_PATH --extra-vars="tmp_inv_path=$TMP_INV_PATH vm_name=$VM_NAME ansible_ssh_private_key_file='./id_rsa'" start_seed.yml
