@@ -7,6 +7,8 @@
     max_port: 2322
 
   tasks:
+  
+#Replace vbox modules with newer Ansible vbox modules when they appear
     - name: "Get vbox facts"
       vbox_vm_facts:
 
