@@ -105,6 +105,7 @@
         accept_hostkey: yes
 
 #Networking
+#Need to test this with the interface name change coming with Centos 8
     - name: "Configure bridged network"
       lineinfile:
         path: "/etc/sysconfig/network-scripts/ifcfg-enp0s3"
