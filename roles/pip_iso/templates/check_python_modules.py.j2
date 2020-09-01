@@ -36,6 +36,9 @@ for module in [ '
   {%- elif 'Keras' in package -%}
     {%- set test = "keras" -%}
     {%- do test_list.append(test) -%}
+  {%- elif 'devito' in package -%}
+    {%- set test = "devito" -%}
+    {%- do test_list.append(test) -%}
   {%- endif -%}
 {%- endfor -%}
 {{ test_list | unique | join('\', \'') }}' ]:
